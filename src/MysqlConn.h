@@ -49,6 +49,7 @@ public:
         return false;
     }
 
+    //编译器会直接在调用函数的栈空间上构造对象，而不是在函数内创建对象然后拷贝到调用函数的栈空间上。不用担心拷贝开销
     string Value(uint fieldIndex) {
         uint colCount = mysql_num_fields(result.get());
         if (fieldIndex >= colCount) {
