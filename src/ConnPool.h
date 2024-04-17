@@ -23,15 +23,33 @@ public:
         return &pool;
     }
 
-    unique_ptr<MysqlConn> GetConn() {
+    shared_ptr<MysqlConn> GetConn()
+    {
         unique_lock<mutex> lock(mu);
         if (conns.empty()) {
-            cond.wait_for(lock, milliseconds(timeOutMs));
+            if (consume.wait_for(lock, milliseconds(timeOutMs)) == cv_status::timeout) {
+                return nullptr;
+            }
         }
+        auto conn = std::move(conns.front());
+        conns.pop();
+        if (conns.size() < dbMinSize) {
+            produce.notify_all();
+        }
+        auto raw = conn.release();
+        return shared_ptr<MysqlConn>(raw, [this](MysqlConn* rawConn)
+        {
+            lock_guard<mutex> lock_guard(mu);
+            rawConn->RefreshAliveTime();
+            unique_ptr<MysqlConn> unique(rawConn);
+            conns.push(std::move(unique));
+        });
     }
+
 private:
     queue<unique_ptr<MysqlConn>> conns;
-    condition_variable cond;
+    condition_variable produce;
+    condition_variable consume;
     mutex mu;
 
     string dbIp;
@@ -88,7 +106,8 @@ private:
         return true;
     }
 
-    void addConnUntilMinSize() {
+    void addConnUntilMinSize()
+    {
         for (auto i = conns.size(); i < dbMinSize;) {
             auto conn = make_unique<MysqlConn>();
             auto connected = conn->Connect(dbIp, dbUser, dbPassword, dbName, dbPort);
@@ -101,27 +120,32 @@ private:
         }
     }
 
-    void producer() {
+    void producer()
+    {
         while (true) {
             unique_lock<mutex> lock(mu);
             if (conns.size() < dbMinSize) {
                 addConnUntilMinSize();
-            } else {
-                cond.wait(lock); //等待直到其他线程notify唤醒它，等待期间自动释放传入的lock
+                //通知消费者资源已准备好
+                consume.notify_all();
+            }
+            else {
+                produce.wait(lock); //等待直到其他线程notify唤醒它，等待期间自动释放传入的lock
                 //被唤醒时自动重新获取锁
             }
         }
     }
 
-    void recycler() {
+    void recycler()
+    {
         while (true) {
             this_thread::sleep_for(chrono::milliseconds(connRecycleIntervalMs));
             unique_lock<mutex> lock(mu);
             while (conns.size() > dbMinSize) {
-                auto &temp = conns.front();
-                if (temp->GetAliveTimeMs() >= maxIdleTimeMs) {
+                if (auto& temp = conns.front(); temp->GetAliveTimeMs() >= maxIdleTimeMs) {
                     conns.pop();
-                } else {
+                }
+                else {
                     break; //如果最早入队列的线程都没有超时，那就都没超时
                 }
             }
