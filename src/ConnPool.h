@@ -43,6 +43,7 @@ public:
             rawConn->RefreshAliveTime();
             unique_ptr<MysqlConn> unique(rawConn);
             conns.push(std::move(unique));
+            consume.notify_all();
         });
     }
 
