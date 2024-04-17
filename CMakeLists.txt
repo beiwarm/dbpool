@@ -6,4 +6,7 @@ set(CMAKE_CXX_STANDARD 17)
 add_executable(mysql_pool main.cpp
         src/MysqlConn.h
         src/MysqlConn.h
+        src/ConnPool.h
+        src/ConnPool.h
+        src/SafeQueue.h
 )

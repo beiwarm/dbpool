@@ -1,0 +1,11 @@
+{
+  "ip": "localhost",
+  "port": 3306,
+  "user": "root",
+  "password": "admin",
+  "dbName": "connpool",
+  "minSize": 12,
+  "maxSize": 24,
+  "maxIdleTimeMs": 10000,
+  "connRecycleIntervalMs": 15000
+}
