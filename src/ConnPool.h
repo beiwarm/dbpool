@@ -34,8 +34,8 @@ private:
     string dbName;
     size_t dbMinSize;
     size_t dbMaxSize;
-    int connRecycleIntervalMs;
-    int maxIdleTimeMs;
+    uint64_t connRecycleIntervalMs;
+    uint64_t maxIdleTimeMs;
 
     ConnPool() {
         if (!parseJson()) {
@@ -74,8 +74,8 @@ private:
         dbName = config["dbName"].asString();
         dbMinSize = config["minSize"].asUInt();
         dbMaxSize = config["maxSize"].asUInt();
-        maxIdleTimeMs = config["maxIdleTimeMs"].asInt();
-        connRecycleIntervalMs = config["connRecycleIntervalMs"].asInt();
+        maxIdleTimeMs = config["maxIdleTimeMs"].asUInt64();
+        connRecycleIntervalMs = config["connRecycleIntervalMs"].asUInt64();
         return true;
     }
 
@@ -107,8 +107,12 @@ private:
     void recycler() {
         while (true) {
             this_thread::sleep_for(chrono::milliseconds(connRecycleIntervalMs));
+            unique_lock<mutex> lock(mu);
             while (conns.size() > dbMinSize) {
-
+                auto &temp = conns.front();
+                if (temp->GetAliveTimeMs() >= maxIdleTimeMs) {
+                    conns.pop();
+                }
             }
         }
     }

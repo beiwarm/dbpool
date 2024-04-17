@@ -4,8 +4,9 @@
 #include <string>
 #include "mysql/mysql.h"
 #include <memory>
-
+#include <chrono>
 using namespace std;
+using namespace chrono;
 
 class MysqlConn {
     //初始化数据库连接
@@ -22,8 +23,17 @@ public:
         }
     }
 
+    void RefreshAliveTime() {
+        aliveTime = steady_clock::now();
+    }
+
+    uint64_t GetAliveTimeMs() {
+        return duration_cast<milliseconds>(steady_clock::now() - aliveTime).count();
+    }
+
     bool Connect(const string &ip, const string &user, const string &password, const string &dbName = "",
                  int port = 3306) {
+        RefreshAliveTime();
         return mysql_real_connect(conn, ip.c_str(), user.c_str(), password.c_str(),
                                   dbName.c_str(), port, nullptr, 0)
                != nullptr;
@@ -78,6 +88,7 @@ private:
     //unique_ptr想要一个指向deleter的指针，这边传一个指向free函数的指针
     unique_ptr<MYSQL_RES, decltype(&mysql_free_result)> result{nullptr, mysql_free_result}; //智能指针自动释放查询结果
     MYSQL_ROW row = nullptr; //不需要单独释放，因为result释放的时候row的内存也就释放了
+    steady_clock::time_point aliveTime;
 };
 
 
