@@ -7,5 +7,6 @@
   "minSize": 12,
   "maxSize": 24,
   "maxIdleTimeMs": 10000,
-  "connRecycleIntervalMs": 15000
+  "connRecycleIntervalMs": 15000,
+  "timeOutMs": 2000
 }

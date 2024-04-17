@@ -12,6 +12,7 @@
 
 using namespace std;
 using namespace Json;
+using namespace chrono;
 
 const string configFile = "config.json";
 
@@ -22,6 +23,12 @@ public:
         return &pool;
     }
 
+    unique_ptr<MysqlConn> GetConn() {
+        unique_lock<mutex> lock(mu);
+        if (conns.empty()) {
+            cond.wait_for(lock, milliseconds(timeOutMs));
+        }
+    }
 private:
     queue<unique_ptr<MysqlConn>> conns;
     condition_variable cond;
@@ -36,6 +43,7 @@ private:
     size_t dbMaxSize;
     uint64_t connRecycleIntervalMs;
     uint64_t maxIdleTimeMs;
+    uint64_t timeOutMs;
 
     ConnPool() {
         if (!parseJson()) {
@@ -76,6 +84,7 @@ private:
         dbMaxSize = config["maxSize"].asUInt();
         maxIdleTimeMs = config["maxIdleTimeMs"].asUInt64();
         connRecycleIntervalMs = config["connRecycleIntervalMs"].asUInt64();
+        timeOutMs = config["timeOutMs"].asUInt64();
         return true;
     }
 
@@ -112,6 +121,8 @@ private:
                 auto &temp = conns.front();
                 if (temp->GetAliveTimeMs() >= maxIdleTimeMs) {
                     conns.pop();
+                } else {
+                    break; //如果最早入队列的线程都没有超时，那就都没超时
                 }
             }
         }
