@@ -9,39 +9,39 @@ using namespace std;
 template<typename T>
 class SafeQueue {
 private:
-    queue<T> queue;
+    queue<T> stlQueue;
     recursive_mutex mu;
 
 public:
     bool Empty() // 返回队列是否为空
     {
         unique_lock<recursive_mutex> lock(mu);
-        return queue.empty();
+        return stlQueue.empty();
     }
 
     size_t Size() {
         unique_lock<recursive_mutex> lock(mu);
-        return queue.size();
+        return stlQueue.size();
     }
 
     void Push(const T &t) {
         unique_lock<recursive_mutex> lock(mu);
-        queue.push(t);
+        stlQueue.push(t);
     }
 
     //支持移动语义
     void Push(T &&t) {
         unique_lock<recursive_mutex> lock(mu);
-        queue.push(std::move(t));
+        stlQueue.push(std::move(t));
     }
 
     // 队列取出元素
     bool Pop(T &t) {
         unique_lock<recursive_mutex> lock(mu);
-        if (queue.empty())
+        if (stlQueue.empty())
             return false;
-        t = move(queue.front());
-        queue.pop();
+        t = move(stlQueue.front());
+        stlQueue.pop();
         return true;
     }
 };

@@ -8,13 +8,12 @@
 #include <iostream>
 #include <condition_variable>
 #include <thread>
-#include "SafeQueue.h"
 
 using namespace std;
 using namespace Json;
 using namespace chrono;
 
-const string configFile = "config.json";
+const string configFile = "../config.json";
 
 class ConnPool {
 public:
@@ -27,14 +26,16 @@ public:
     {
         unique_lock<mutex> lock(mu);
         if (conns.empty()) {
-            if (consume.wait_for(lock, milliseconds(timeOutMs)) == cv_status::timeout) {
+            needProduce.notify_all();
+            if (canConsume.wait_for(lock, milliseconds(timeOutMs)) == cv_status::timeout) {
+                cerr << "GetConn timeout" << endl;
                 return nullptr;
             }
         }
         auto conn = std::move(conns.front());
         conns.pop();
         if (conns.size() < dbMinSize) {
-            produce.notify_all();
+            needProduce.notify_all();
         }
         auto raw = conn.release();
         return shared_ptr<MysqlConn>(raw, [this](MysqlConn* rawConn)
@@ -43,14 +44,14 @@ public:
             rawConn->RefreshAliveTime();
             unique_ptr<MysqlConn> unique(rawConn);
             conns.push(std::move(unique));
-            consume.notify_all();
+            canConsume.notify_all();
         });
     }
 
 private:
     queue<unique_ptr<MysqlConn>> conns;
-    condition_variable produce;
-    condition_variable consume;
+    condition_variable needProduce;
+    condition_variable canConsume;
     mutex mu;
 
     string dbIp;
@@ -109,7 +110,7 @@ private:
 
     void addConnUntilMinSize()
     {
-        for (auto i = conns.size(); i < dbMinSize;) {
+        for (auto i = conns.size(); i <= dbMinSize;) {
             auto conn = make_unique<MysqlConn>();
             auto connected = conn->Connect(dbIp, dbUser, dbPassword, dbName, dbPort);
             if (connected) {
@@ -128,10 +129,10 @@ private:
             if (conns.size() < dbMinSize) {
                 addConnUntilMinSize();
                 //通知消费者资源已准备好
-                consume.notify_all();
+                canConsume.notify_all();
             }
             else {
-                produce.wait(lock); //等待直到其他线程notify唤醒它，等待期间自动释放传入的lock
+                needProduce.wait(lock); //等待直到其他线程notify唤醒它，等待期间自动释放传入的lock
                 //被唤醒时自动重新获取锁
             }
         }

@@ -6,7 +6,7 @@
   "dbName": "connpool",
   "minSize": 12,
   "maxSize": 24,
-  "maxIdleTimeMs": 10000,
-  "connRecycleIntervalMs": 15000,
+  "maxIdleTimeMs": 5000,
+  "connRecycleIntervalMs": 6000,
   "timeOutMs": 2000
 }
