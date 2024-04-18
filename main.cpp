@@ -1,8 +1,6 @@
 #include <iostream>
 #include "src/MysqlConn.h"
 #include "src/ConnPool.h"
-#include <memory>
-
 void query() {
     MysqlConn conn;
     bool connected = conn.Connect("localhost", "root", "admin", "connpool");
@@ -45,7 +43,7 @@ void test1(int n) {
     op1(0, n);
     steady_clock::time_point end = steady_clock::now();
     auto length = end - begin;
-    cout << "单线程，无连接池，耗时：" << length.count() / (1000 * 1000) << "ms" << endl;
+    cout << "无连接池，耗时：" << length.count() / (1000 * 1000) << "ms" << endl;
 }
 
 void test2(int n) {
@@ -53,11 +51,11 @@ void test2(int n) {
     op2(ConnPool::Get(), 0, n);
     steady_clock::time_point end = steady_clock::now();
     auto length = end - begin;
-    cout << "单线程，带连接池，耗时：" << length.count() / (1000 * 1000) << "ms" << endl;
+    cout << "带连接池，耗时：" << length.count() / (1000 * 1000) << "ms" << endl;
 }
 
 int main() {
-    int n = 1000;
+    int n = 5000;
     test1(n);
     test2(n);
     return 0;

@@ -1,0 +1,3 @@
+/mnt/d/Work/mysql_pool/cmake-build-debug/CMakeFiles/mysql_pool.dir
+/mnt/d/Work/mysql_pool/cmake-build-debug/CMakeFiles/edit_cache.dir
+/mnt/d/Work/mysql_pool/cmake-build-debug/CMakeFiles/rebuild_cache.dir
